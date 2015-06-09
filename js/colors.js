@@ -19,6 +19,15 @@ function Color(r, g, b) {
   this.b = b;
 }
 
+Color.prototype.max = function() {
+  return Math.max(this.r, this.g, this.b);
+}
+
+Color.prototype.min = function() {
+  return Math.min(this.r, this.g, this.b);
+}
+
+
 Color.prototype.distance = function(otherColor) {
   var dr = this.r - otherColor.r;
   var dg = this.g - otherColor.g;
@@ -28,6 +37,23 @@ Color.prototype.distance = function(otherColor) {
 
 Color.prototype.toString = function() {
   return "rgb(" + this.r + "," + this.g + "," + this.b + ")";
+}
+
+Color.prototype.hue = function() {
+  var hue = 0;
+  var c = this.max - this.min;
+
+  if (c === 0) {
+    hue = 0;
+  } else if (this.max === this.r) {
+    hue = (this.g - this.b)/c % 6;
+  } else if (this.max === this.g) {
+    hue = (this.b - this.r)/c + 2;
+  } else if (this.max === this.b) {
+    hue = (this.r - this.g)/c + 4;
+  }
+
+  return hue;
 }
 
 function Cell(x, y) {
@@ -158,12 +184,13 @@ Grid.prototype.updateBoundary = function(newCell) {
   }
 }
 
-function ColorMapper(height, width) {
+function ColorMapper(height, width, ctx) {
   this.grid = new Grid(height, width);
   this.palette = [];
   this.n = 32;
   this.L = parseInt(256/this.n);
   this.coloredCells = [];
+  this.ctx = ctx;
 }
 
 ColorMapper.prototype.setUp = function() {
@@ -181,6 +208,17 @@ ColorMapper.prototype.generatePalette = function() {
     }
   }
   this.palette = shuffle(orderedColors);
+  // this.palette.sort(function(color1, color2) {
+  //   return color1.hue > color2.hue;
+  // });
+  // console.log('done sorting by hue');
+}
+
+ColorMapper.prototype.sortByHue = function() {
+  this.palette.sort(function(color1, color2) {
+    return color1.hue > color2.hue;
+  });
+  console.log('done sorting by hue');
 }
 
 ColorMapper.prototype.chooseColor = function() {
@@ -224,28 +262,32 @@ ColorMapper.prototype.colorNextCell = function() {
   this.grid.updateBoundary(bestCell);
 }
 
-
-Cell.prototype.paint = function() {
-  $("#" + this.toString()).css("background-color", this.color.toString());
-}
-
 $(function() {
-
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
   //setup
-  $("#painting").html(generateGrid(128, 64));
-
+  // $("#painting").html(generateGrid(128, 128));
+  Cell.prototype.paint = function() {
+    // $("#" + this.toString()).css("background-color", this.color.toString());
+    ctx.fillStyle = this.color.toString();
+    ctx.fillRect(4*this.x, 4*this.y, 4, 4);
+  }
   var paintDisShit  = function() {
-    var artist = new ColorMapper(128, 64);
+    var artist = new ColorMapper(128, 64, ctx);
     artist.setUp();
+
+    // sort colors by hue
+    // artist.sortByHue();
+
     var startCell = artist.grid.getCell(32, 64);
     artist.colorCell(startCell, artist.chooseColor());
     startCell.paint();
     artist.grid.boundary = artist.grid.emptyNeighbors(startCell);
 
     var j = 0;
-    while (j < 128*63 + 64) {
-        artist.colorNextCell();
-        j += 1;
+    while (j < 128*63 + 125) {
+      artist.colorNextCell();
+      j += 1;
     }
     console.log('ready');
 
@@ -255,9 +297,18 @@ $(function() {
 
     var i = 0;
     var id = setInterval(function() {
-      artist.coloredCells[i].paint();
-      i += 1;
-      if ( i === artist.coloredCells.length) { clearInterval(id); }
+      if ( i + 4 < artist.coloredCells.length) {
+        artist.coloredCells[i].paint();
+        artist.coloredCells[i+1].paint();
+        artist.coloredCells[i+2].paint();
+        artist.coloredCells[i+3].paint();
+        artist.coloredCells[i+4].paint();
+        i += 5;
+      } else {
+        clearInterval(id);
+        console.log('done')
+        return 'done';
+      }
     }, 1);
 
   }
@@ -266,6 +317,10 @@ $(function() {
 
 
 });
+
+
+
+
 
 var generateGrid = function(height, width) {
   var grid = "<table>";
