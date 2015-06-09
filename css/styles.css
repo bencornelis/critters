@@ -1,0 +1,16 @@
+body {
+  padding: 50px;
+}
+
+.cell {
+  height: 4px;
+  width: 4px;
+}
+
+td {
+  margin:0px;
+  padding:0px;
+}
+table {
+  border-collapse:collapse;
+}
