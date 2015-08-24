@@ -335,22 +335,38 @@ SmartPlantEater.prototype.act = function(view) {
 }
 
 function Tiger() {
-  this.energy = 30;
-  this.species = "grey"
+  this.energy = 100;
+  this.species = "grey";
+  this.memory = [];
+}
+
+Tiger.prototype.spotPrey = function(view) {
+  this.memory.push(view.findAllFar("o").length);
+  if (this.memory.length > 10) this.memory.shift();
+}
+
+Tiger.prototype.recentPreyCount = function() {
+  return this.memory.reduce(function(sum, num) {
+    return sum + num;
+  }, 0);
 }
 
 Tiger.prototype.act = function(view) {
+  this.spotPrey(view);
   var space = view.find(" ");
-  if (this.energy < 80) {
+  if (this.energy < 100) {
     var prey = view.findNearest("o");
     if (prey) {
-      if (prey.distance == 1)
+      if (prey.distance == 1 &&
+         (this.memory.length < 10 || this.recentPreyCount() > 1))
         return {type: "eat", direction: prey.direction};
+      else if (prey.distance == 1 && space)
+        return {type: "move", direction: space};
       else
         return {type: "move", direction: prey.direction};
     }
   }
-  if (this.energy > 70 && Math.random() < 0.1)
+  if (this.energy > 90 && Math.random() < 0.1)
     return {type: "reproduce", direction: space};
   if (space)
     return {type: "move", direction: space};
