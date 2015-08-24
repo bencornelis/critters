@@ -180,6 +180,39 @@ View.prototype.find = function(ch) {
   return randomElement(found);
 }
 
+View.prototype.lookFar = function(dir) {
+  var step = directions[dir];
+  var target = this.vector.plus(step);
+  var distance = 1;
+  while (this.world.grid.isInside(target)) {
+    var element = this.world.grid.get(target)
+    if (charFromElement(element) != " ")
+      return {char: charFromElement(element), distance: distance};
+    else
+      target = target.plus(step);
+      distance += 1;
+  }
+  return " "
+}
+
+View.prototype.findAllFar = function(ch) {
+  var found = [];
+  for (var dir in directions) {
+    var sighting = this.lookFar(dir);
+    if (sighting.char == ch)
+      found.push({direction: dir, distance: sighting.distance});
+  }
+  return found;
+}
+
+View.prototype.findNearest = function(ch) {
+  var found = this.findAllFar(ch);
+  if (found.length == 0) return null;
+  return found.reduce(function(nearest, sighting) {
+    return (nearest.distance > sighting.distance) ? sighting : nearest;
+  });
+}
+
 function Wall() {}
 
 // World v2
@@ -246,13 +279,13 @@ actionTypes.reproduce = function(critter, vector, action) {
 }
 
 // new critters
-function Plant(species) {
+function Plant() {
   this.energy = 3 + Math.random() * 4;
   this.species = Math.random() < 0.5 ? "green" : "blue";
 }
 
 Plant.prototype.act = function(view) {
-  if (this.energy > 15) {
+  if (this.energy > 10) {
     var space = view.find(" ");
     if (space)
       return {type: "reproduce", direction: space};
@@ -261,9 +294,9 @@ Plant.prototype.act = function(view) {
     return {type: "grow"};
 }
 
-function PlantEater(species) {
+function PlantEater() {
   this.energy = 20;
-  this.species = Math.random() < 0.5 ? "orange" : "red"
+  this.species = Math.random() < 0.5 ? "orange" : "red";
 }
 
 PlantEater.prototype.act = function(view) {
@@ -277,39 +310,105 @@ PlantEater.prototype.act = function(view) {
     return {type: "move", direction: space};
 }
 
+function SmartPlantEater() {
+  PlantEater.call(this);
+}
+
+SmartPlantEater.prototype = Object.create(PlantEater.prototype);
+
+SmartPlantEater.prototype.act = function(view) {
+  var space = view.find(" ");
+  var plant = view.findNearest("*");
+  if (plant && this.energy < 100) {
+    if (plant.distance == 1 &&
+       (view.findAllFar("*").length > 1 || this.energy < 10))
+      return {type: "eat", direction: plant.direction};
+    else if (plant.distance == 1 && space)
+      return {type: "move", direction: space};
+    else
+      return {type: "move", direction: plant.direction};
+  }
+  if (this.energy > 90 && space && Math.random() < 0.2)
+    return {type: "reproduce", direction: space};
+  if (space)
+    return {type: "move", direction: space};
+}
+
+function Tiger() {
+  this.energy = 30;
+  this.species = "grey"
+}
+
+Tiger.prototype.act = function(view) {
+  var space = view.find(" ");
+  if (this.energy < 80) {
+    var prey = view.findNearest("o");
+    if (prey) {
+      if (prey.distance == 1)
+        return {type: "eat", direction: prey.direction};
+      else
+        return {type: "move", direction: prey.direction};
+    }
+  }
+  if (this.energy > 70 && Math.random() < 0.1)
+    return {type: "reproduce", direction: space};
+  if (space)
+    return {type: "move", direction: space};
+}
+
+
 var plan1 = ["############################",
-            "#      #    #      o      ##",
-            "#                          #",
-            "#          #####           #",
-            "##         #   #    ##     #",
-            "###           ##     #     #",
-            "#           ###      #     #",
-            "#   ####                   #",
-            "#   ##       o             #",
-            "# o  #         o       ### #",
-            "#    #                     #",
-            "############################"];
+             "#      #    #      o      ##",
+             "#                          #",
+             "#          #####           #",
+             "##         #   #    ##     #",
+             "###           ##     #     #",
+             "#           ###      #     #",
+             "#   ####                   #",
+             "#   ##       o             #",
+             "# o  #         o       ### #",
+             "#    #                     #",
+             "############################"];
 
 var plan2 = ["############",
-            "#     #    #",
-            "#   ~    ~ #",
-            "#  ##      #",
-            "#  ##  o####",
-            "#          #",
-            "############"];
+             "#     #    #",
+             "#   ~    ~ #",
+             "#  ##      #",
+             "#  ##  o####",
+             "#          #",
+             "############"];
 
 var plan3 = ["############################",
              "#####                 ######",
              "##   ***                **##",
-             "#   *##**         **  o  *##",
-             "#    ***     o    ##**    *#",
-             "#       o         ##***    #",
+             "#   *##**         **     *##",
+             "#    ***    o     ##**    *#",
+             "#                 ##***    #",
              "#                 ##**     #",
              "#   o       #*             #",
              "#*          #**       o    #",
-             "#***        ##**    o    **#",
+             "#***        ##**         **#",
              "##****     ###***       *###",
              "############################"];
+
+var plan4 = ["####################################################",
+             "#                 ####         ****              ###",
+             "#   *  @  ##                 ########       oo    ##",
+             "#   *    ##        o o                 ****       *#",
+             "#       ##*                        ##########     *#",
+             "#      ##***  *         ****                     **#",
+             "#* **  #  *  ***      #########                  **#",
+             "#* **  #      *               #   *              **#",
+             "#     ##              #   o   #  ***          ######",
+             "#*            @       #       #   *        o  #    #",
+             "#*                    #  ######                 ** #",
+             "###          ****          ***                  ** #",
+             "#       o                        @         o       #",
+             "#   *     ##  ##  ##  ##               ###      *  #",
+             "#   **         #              *       #####  o     #",
+             "##  **  o   o  #  #    ***  ***        ###      ** #",
+             "###               #   *****                    ****#",
+             "####################################################"];
 
 var legend1 = {"#": Wall,
                "~": WallFollower,
@@ -319,8 +418,17 @@ var legend2 = {"#": Wall,
                "o": PlantEater,
                "*": Plant};
 
-var plan   = plan3,
-    legend = legend2;
+var legend3 = {"#": Wall,
+               "o": SmartPlantEater,
+               "*": Plant};
+
+var legend4 = {"#": Wall,
+               "@": Tiger,
+               "o": SmartPlantEater,
+               "*": Plant}
+
+var plan   = plan4,
+    legend = legend4;
 
 var world = new LifelikeWorld(plan, legend);
 
@@ -352,7 +460,7 @@ $(function() {
 })
 
 function generateGrid(height, width) {
-  var grid = "<table>";
+  var grid = "<table id='grid'>";
   for (var y = 0; y < height; y++) {
     var row = "<tr>";
     for (var x = 0; x < width; x++) {
@@ -382,7 +490,7 @@ function startWorld(height, width) {
   return setInterval(function() {
     world.turn();
     updateGrid(height, width);
-  }, 200);
+  }, 300);
 }
 
 function stopWorld(id) {

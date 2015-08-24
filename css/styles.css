@@ -5,8 +5,8 @@ body {
 }
 
 .cell {
-  height: 10px;
-  width: 10px;
+  min-height: 20px;
+  min-width: 20px;
   font-size: 90%;
 }
 
@@ -17,6 +17,11 @@ td {
 
 table {
   border-collapse:collapse;
+}
+
+#grid {
+  margin-top: 10px;
+  border: 1px solid #4ab;
 }
 
 #stop {
